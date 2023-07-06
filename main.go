@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,59 +28,52 @@ func randUserAgent() string {
 	return userAgents[randNum]
 }
 
-func scrapeData() {
+func scrapeData() (string, float64, float64, float64, float64) {
 	c := colly.NewCollector(colly.AllowedDomains("in.investing.com"))
 
 	c.OnRequest(func(r *colly.Request) {
 		r.Headers.Set("User-Agent", randUserAgent())
 	})
 
-	currentTime := time.Now()
-	currentDate := currentTime.Format("2006-01-02")
+	var (
+		name  string
+		open  float64
+		low   float64
+		high  float64
+		close float64
+	)
 
-	fmt.Println("Current Date:", currentDate)
-	fmt.Println("Current Time:", currentTime.Format("15:04:05"))
-	
 	c.OnHTML("h1.main-title.js-main-title span.text", func(e *colly.HTMLElement) {
 		index := e.Text
 		index = strings.TrimSpace(index)
-		fmt.Println("Current Date:", currentDate)
-		fmt.Println("Current Time:", currentTime.Format("15:04:05"))
-		fmt.Println("Name : ", index)
+		name = index
 	})
 
 	c.OnHTML("div.common-data-item dt.common-data-label span.text:contains('Open')", func(e *colly.HTMLElement) {
 		openValue := e.DOM.Parent().Next().Text()
 		openValue = strings.TrimSpace(openValue)
 		if openValue != "" {
-			fmt.Println("Open: ", openValue)
+			open, _ = strconv.ParseFloat(openValue, 64)
 		}
 	})
-	
 
 	c.OnHTML("div.common-data-item dt.common-data-label span.text:contains('Day')", func(e *colly.HTMLElement) {
 		daysRangeValue := e.DOM.Parent().Next().Text()
 		daysRangeValue = strings.TrimSpace(daysRangeValue)
-		var low string
-		var high string
 		splitValues := strings.Split(daysRangeValue, " - ")
 		if len(splitValues) == 2 {
-			low = splitValues[0]
-			high = splitValues[1]
+			low, _ = strconv.ParseFloat(splitValues[0], 64)
+			high, _ = strconv.ParseFloat(splitValues[1], 64)
 		}
-		fmt.Println("Low: ",low)
-		fmt.Println("High: ",high)
 	})
 
 	c.OnHTML("div.last-price-and-wildcard bdo.last-price-value.js-streamable-element", func(e *colly.HTMLElement) {
-		close := e.Text
-		if close != "" {
-			fmt.Println("Close: ", close)
+		price := e.Text
+		price = strings.TrimSpace(price)
+		if price != "" {
+			close, _ = strconv.ParseFloat(price, 64)
 		}
 	})
-
-	
-	
 
 	c.OnError(func(r *colly.Response, err error) {
 		log.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError", err)
@@ -89,11 +83,30 @@ func scrapeData() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	return name, open, low, high, close
+}
+
+func printData(name string, open float64, low float64, high float64, close float64) {
+	currentTime := time.Now()
+	currentDate := currentTime.Format("2006-01-02")
+	fmt.Println("Current Date:", currentDate)
+	fmt.Println("Current Time:", currentTime.Format("15:04:05"))
+	fmt.Println("Name:", name)
+	fmt.Println("Open:", open)
+	fmt.Println("Low:", low)
+	fmt.Println("High:", high)
+	fmt.Println("Close:", close)
+	fmt.Println("------------------------")
+	
 }
 
 func main() {
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.NewTicker(6 * time.Second)
 	for range ticker.C {
-		scrapeData()
+		name, open, low, high, close := scrapeData()
+
+		printData(name,open,low,high,close)
+		
 	}
 }
