@@ -34,18 +34,52 @@ func scrapeData() {
 		r.Headers.Set("User-Agent", randUserAgent())
 	})
 
+	currentTime := time.Now()
+	currentDate := currentTime.Format("2006-01-02")
+
+	fmt.Println("Current Date:", currentDate)
+	fmt.Println("Current Time:", currentTime.Format("15:04:05"))
+	
 	c.OnHTML("h1.main-title.js-main-title span.text", func(e *colly.HTMLElement) {
 		index := e.Text
 		index = strings.TrimSpace(index)
+		fmt.Println("Current Date:", currentDate)
+		fmt.Println("Current Time:", currentTime.Format("15:04:05"))
 		fmt.Println("Name : ", index)
+	})
+
+	c.OnHTML("div.common-data-item dt.common-data-label span.text:contains('Open')", func(e *colly.HTMLElement) {
+		openValue := e.DOM.Parent().Next().Text()
+		openValue = strings.TrimSpace(openValue)
+		if openValue != "" {
+			fmt.Println("Open: ", openValue)
+		}
+	})
+	
+
+	c.OnHTML("div.common-data-item dt.common-data-label span.text:contains('Day')", func(e *colly.HTMLElement) {
+		daysRangeValue := e.DOM.Parent().Next().Text()
+		daysRangeValue = strings.TrimSpace(daysRangeValue)
+		var low string
+		var high string
+		splitValues := strings.Split(daysRangeValue, " - ")
+		if len(splitValues) == 2 {
+			low = splitValues[0]
+			high = splitValues[1]
+		}
+		fmt.Println("Low: ",low)
+		fmt.Println("High: ",high)
 	})
 
 	c.OnHTML("div.last-price-and-wildcard bdo.last-price-value.js-streamable-element", func(e *colly.HTMLElement) {
 		close := e.Text
 		if close != "" {
-			fmt.Println("Price: ", close)
+			fmt.Println("Close: ", close)
 		}
 	})
+
+	
+	
 
 	c.OnError(func(r *colly.Response, err error) {
 		log.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError", err)
