@@ -1,9 +1,11 @@
 package scraper
 
 import (
+	"encoding/csv"
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -28,7 +30,7 @@ func RandUserAgent() string {
 	return userAgents[randNum]
 }
 
-func ScrapeData() (string, float64, float64, float64, float64) {
+func ScrapeData(url string) (string, float64, float64, float64, float64) {
 	c := colly.NewCollector(colly.AllowedDomains("in.investing.com"))
 
 	c.OnRequest(func(r *colly.Request) {
@@ -79,7 +81,7 @@ func ScrapeData() (string, float64, float64, float64, float64) {
 		log.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError", err)
 	})
 
-	err := c.Visit("https://in.investing.com/equities/facebook-inc")
+	err := c.Visit(url)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -98,5 +100,43 @@ func PrintData(name string, open float64, low float64, high float64, close float
 	fmt.Println("High:", high)
 	fmt.Println("Close:", close)
 	fmt.Println("------------------------")
+	// Open or create the CSV file
+	file, err := os.OpenFile("data.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	// Create a CSV writer
+	writer := csv.NewWriter(file)
+
+	// Check if the file is empty
+	fileInfo, err := file.Stat()
+	if err != nil {
+		log.Fatal(err)
+	}
+	isEmpty := fileInfo.Size() == 0
+
+	// Write headers if the file is empty
+	if isEmpty {
+		headers := []string{"Date", "Time", "Name", "Open", "Low", "High", "Close"}
+		err = writer.Write(headers)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// Write the data to the CSV file
+	data := []string{currentDate, currentTime.Format("15:04:05"), name, strconv.FormatFloat(open, 'f', -1, 64), strconv.FormatFloat(low, 'f', -1, 64), strconv.FormatFloat(high, 'f', -1, 64), strconv.FormatFloat(close, 'f', -1, 64)}
+	err = writer.Write(data)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Flush any buffered data to the file
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		log.Fatal(err)
+	}
 
 }
