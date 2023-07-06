@@ -5,7 +5,6 @@ import (
 	"log"
 	"math/rand"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gocolly/colly"
@@ -22,39 +21,29 @@ var (
 	}
 )
 
-type StockData struct {
-	Name  string
-	Close string
-}
-
 func randUserAgent() string {
 	rand.Seed(time.Now().Unix())
 	randNum := rand.Int() % len(userAgents)
 	return userAgents[randNum]
 }
 
-func main() {
-	c := colly.NewCollector(colly.AllowedDomains("www.tickertape.in"))
+func scrapeData() {
+	c := colly.NewCollector(colly.AllowedDomains("in.investing.com"))
 
 	c.OnRequest(func(r *colly.Request) {
 		r.Headers.Set("User-Agent", randUserAgent())
 	})
 
-	var wg sync.WaitGroup
-	dataCh := make(chan StockData)
-
-	c.OnHTML("span.jsx-4049911629.ticker.text-teritiary.font-medium", func(e *colly.HTMLElement) {
+	c.OnHTML("h1.main-title.js-main-title span.text", func(e *colly.HTMLElement) {
 		index := e.Text
 		index = strings.TrimSpace(index)
-		dataCh <- StockData{Name: index}
+		fmt.Println("Name : ", index)
 	})
 
-	c.OnHTML("div.jsx-3168773259.quote-box-root.with-children span.jsx-3168773259.current-price.typography-h1.text-primary", func(e *colly.HTMLElement) {
+	c.OnHTML("div.last-price-and-wildcard bdo.last-price-value.js-streamable-element", func(e *colly.HTMLElement) {
 		close := e.Text
-		close = strings.ReplaceAll(close, ",", "")
-		close = strings.TrimPrefix(close, "₹")
 		if close != "" {
-			dataCh <- StockData{Close: close}
+			fmt.Println("Price: ", close)
 		}
 	})
 
@@ -62,34 +51,15 @@ func main() {
 		log.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError", err)
 	})
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := c.Visit("https://www.tickertape.in/indices/nifty-50-index-.NSEI")
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
+	err := c.Visit("https://in.investing.com/equities/facebook-inc")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
-	go func() {
-		wg.Wait()
-		close(dataCh)
-	}()
-
-	var stockData StockData
-	for d := range dataCh {
-		if d.Name != "" {
-			stockData.Name = d.Name
-		}
-		if d.Close != "" {
-					stockData.Close = d.Close
-		}
-
-		if stockData.Name != "" && stockData.Close != "" {
-			fmt.Println("Name:", stockData.Name)
-			fmt.Println("Close:", stockData.Close)
-			// Reset stockData for the next iteration
-			stockData = StockData{}
-		}
+func main() {
+	ticker := time.NewTicker(3 * time.Second)
+	for range ticker.C {
+		scrapeData()
 	}
 }
