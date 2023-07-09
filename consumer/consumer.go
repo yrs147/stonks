@@ -2,15 +2,19 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
-	"time"
+	"net/http"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/segmentio/kafka-go"
 )
 
 type StockData struct {
-	Timestamp time.Time
+	Timestamp string
 	Name      string
 	Open      float64
 	Low       float64
@@ -18,29 +22,100 @@ type StockData struct {
 	Close     float64
 }
 
+var (
+	openGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "stock_open",
+		Help: "Open price of the stock",
+	}, []string{"name"})
+	lowGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "stock_low",
+		Help: "Low price of the stock",
+	}, []string{"name"})
+	highGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "stock_high",
+		Help: "High price of the stock",
+	}, []string{"name"})
+	closeGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "stock_close",
+		Help: "Close price of the stock",
+	}, []string{"name"})
+)
+
+func init() {
+	prometheus.MustRegister(openGauge)
+	prometheus.MustRegister(lowGauge)
+	prometheus.MustRegister(highGauge)
+	prometheus.MustRegister(closeGauge)
+}
+
 func main() {
 	// Kafka broker address
-	brokerAddress := "localhost:9092"
+	brokerAddress1 := "localhost:9092"
+	brokerAddress2 := "localhost:9093"
 
 	// Create a reader with broker address, topic, and consumer group
-	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  []string{brokerAddress},
+	reader1 := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:  []string{brokerAddress1},
 		Topic:    "google",
 		GroupID:  "consumer1",
 		MinBytes: 10e3, // 10KB
 		MaxBytes: 10e6, // 10MB
 	})
 
-	defer reader.Close()
+	// Create a reader with broker address, topic, and consumer group
+	reader2 := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:  []string{brokerAddress2},
+		Topic:    "meta",
+		GroupID:  "consumer1",
+		MinBytes: 10e3, // 10KB
+		MaxBytes: 10e6, // 10MB
+	})
+
+	defer reader1.Close()
+	defer reader2.Close()
+
+	// Start Prometheus HTTP server
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		log.Fatal(http.ListenAndServe("localhost:9000", nil))
+	}()
 
 	for {
 		// Read a message from Kafka
-		msg, err := reader.ReadMessage(context.Background())
+		msg1, err := reader1.ReadMessage(context.Background())
 		if err != nil {
 			log.Printf("Error while consuming message: %v\n", err)
 			continue
 		}
 
-		fmt.Printf("Received Message: %s\n", string(msg.Value))
+		processMessage(string(msg1.Value))
+
+		// Read a message from Kafka
+		msg2, err := reader1.ReadMessage(context.Background())
+		if err != nil {
+			log.Printf("Error while consuming message: %v\n", err)
+			continue
+		}
+
+		processMessage(string(msg2.Value))
 	}
 }
+
+func processMessage(msg string) {
+	// Parse the received message
+	var stockData StockData
+	err := json.Unmarshal([]byte(msg), &stockData)
+	if err != nil {
+		log.Printf("Error while parsing JSON: %v\n", err)
+		return
+	}
+
+	// Update Prometheus metrics with labels
+	openGauge.WithLabelValues(stockData.Name).Set(stockData.Open)
+	lowGauge.WithLabelValues(stockData.Name).Set(stockData.Low)
+	highGauge.WithLabelValues(stockData.Name).Set(stockData.High)
+	closeGauge.WithLabelValues(stockData.Name).Set(stockData.Close)
+
+	fmt.Printf("Received Message: %+v\n", stockData)
+}
+
