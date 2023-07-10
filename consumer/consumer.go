@@ -75,7 +75,7 @@ func main() {
 	// Start Prometheus HTTP server
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		log.Fatal(http.ListenAndServe("consumer:9010", nil))
+		log.Fatal(http.ListenAndServe(":9010", nil))
 	}()
 
 	for {
