@@ -68,16 +68,14 @@ services:
     environment:
       - BROKER_ADDRESS1=broker:9092
       - BROKER_ADDRESS2=broker:9093
-    ports:
-      - "9010:9010"  
 
   prometheus:
-    image: prom/prometheus
+    build:
+      context: ./prometheus
+      dockerfile: Dockerfile
     container_name: prometheus
     ports:
       - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
 
   grafana:
     image: grafana/grafana
