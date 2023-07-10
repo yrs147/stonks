@@ -1,4 +1,5 @@
 version: '3'
+
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.3.0
@@ -20,7 +21,7 @@ services:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://localhost:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092,PLAINTEXT_INTERNAL://broker:9093
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -29,6 +30,56 @@ services:
       bash -c "
       /etc/confluent/docker/run &
       sleep 10 &&
-      kafka-topics --create --topic nifty --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 &&
-      kafka-topics --create --topic infosys --bootstrap-server localhost:9093 --partitions 1 --replication-factor 1 &&
+      kafka-topics --create --topic nifty --bootstrap-server broker:9092 --partitions 1 --replication-factor 1 &&
+      kafka-topics --create --topic infosys --bootstrap-server broker:9093 --partitions 1 --replication-factor 1 &&
       tail -f /dev/null"
+
+  producer1:
+    build:
+      context: ./producer1
+      dockerfile: Dockerfile
+    container_name: producer1
+    depends_on:
+      - broker
+      - zookeeper
+    environment:
+      - BROKER_ADDRESS1=broker:9092
+  
+  producer2:
+    build:
+      context: ./producer2
+      dockerfile: Dockerfile
+    container_name: producer2
+    depends_on:
+      - broker
+      - zookeeper
+    environment:
+      - BROKER_ADDRESS2=broker:9093
+  
+
+  consumer:
+    build:
+      context: ./consumer
+      dockerfile: Dockerfile
+    container_name: consumer
+    depends_on:
+      - broker
+      - zookeeper
+    environment:
+      - BROKER_ADDRESS1=broker:9092
+      - BROKER_ADDRESS2=broker:9093
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+  
