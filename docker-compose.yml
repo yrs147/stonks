@@ -76,6 +76,10 @@ services:
     container_name: prometheus
     ports:
       - "9090:9090"
+    depends_on:
+      - consumer
+    environment:
+      - CONSUMER_HOST:consumer:9010  
 
   grafana:
     image: grafana/grafana
