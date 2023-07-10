@@ -3,6 +3,7 @@ module consumer
 go 1.20
 
 require (
+	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.16.0
 	github.com/segmentio/kafka-go v0.4.42
 )

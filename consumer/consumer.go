@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -50,13 +51,13 @@ func init() {
 
 func main() {
 	// Kafka broker address
-	brokerAddress1 := "localhost:9092"
-	brokerAddress2 := "localhost:9093"
+	brokerAddress1 := os.Getenv("BROKER_ADDRESS1")
+	brokerAddress2 := os.Getenv("BROKER_ADDRESS2")
 
 	// Create a reader with broker address, topic, and consumer group
 	reader1 := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{brokerAddress1},
-		Topic:    "google",
+		Topic:    "nifty",
 		GroupID:  "consumer1",
 		MinBytes: 10e3, // 10KB
 		MaxBytes: 10e6, // 10MB
@@ -65,19 +66,16 @@ func main() {
 	// Create a reader with broker address, topic, and consumer group
 	reader2 := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{brokerAddress2},
-		Topic:    "meta",
+		Topic:    "infosys",
 		GroupID:  "consumer1",
 		MinBytes: 10e3, // 10KB
 		MaxBytes: 10e6, // 10MB
 	})
 
-	defer reader1.Close()
-	defer reader2.Close()
-
 	// Start Prometheus HTTP server
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		log.Fatal(http.ListenAndServe("localhost:9000", nil))
+		log.Fatal(http.ListenAndServe(":9010", nil))
 	}()
 
 	for {
@@ -89,15 +87,17 @@ func main() {
 		}
 
 		processMessage(string(msg1.Value))
+		defer reader1.Close()
 
 		// Read a message from Kafka
-		msg2, err := reader1.ReadMessage(context.Background())
+		msg2, err := reader2.ReadMessage(context.Background())
 		if err != nil {
 			log.Printf("Error while consuming message: %v\n", err)
 			continue
 		}
 
 		processMessage(string(msg2.Value))
+		defer reader2.Close()
 	}
 }
 
@@ -118,4 +118,3 @@ func processMessage(msg string) {
 
 	fmt.Printf("Received Message: %+v\n", stockData)
 }
-

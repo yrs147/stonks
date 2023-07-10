@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -98,7 +99,13 @@ func ScrapeData(url string) (string, string, float64, float64, float64, float64)
 	if err != nil {
 		log.Fatal(err)
 	}
-	currentTime := time.Now()
+	// Load the local time zone
+	loc, err := time.LoadLocation("Asia/Kolkata") 
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	currentTime := time.Now().In(loc)
 	timestamp := currentTime.Format("02-01-2006 15:04:05")
 
 	return timestamp, name, open, low, high, close
@@ -109,12 +116,12 @@ func main() {
 	// var stockData []StockData
 
 	// Kafka broker address
-	brokerAddress := "localhost:9092"
+	brokerAddress := os.Getenv("BROKER_ADDRESS2")
 
 	// Create a writer with broker address and topic
 	writer := kafka.NewWriter(kafka.WriterConfig{
 		Brokers: []string{brokerAddress},
-		Topic:   "google",
+		Topic:   "infosys",
 	})
 
 	defer writer.Close()
@@ -150,4 +157,3 @@ func main() {
 
 	writer.Close()
 }
-
