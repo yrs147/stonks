@@ -55,7 +55,14 @@ services:
       - zookeeper
     environment:
       - BROKER_ADDRESS2=broker:9093
-  
+
+  prometheus:
+    build:
+      context: ./prometheus
+      dockerfile: Dockerfile
+    container_name: prometheus
+    ports:
+      - "9090:9090"  
 
   consumer:
     build:
@@ -65,21 +72,11 @@ services:
     depends_on:
       - broker
       - zookeeper
+      - prometheus
     environment:
       - BROKER_ADDRESS1=broker:9092
       - BROKER_ADDRESS2=broker:9093
-
-  prometheus:
-    build:
-      context: ./prometheus
-      dockerfile: Dockerfile
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    depends_on:
-      - consumer
-    environment:
-      - CONSUMER_HOST:consumer:9010  
+      - HOST_ADDR=prometheus:9010
 
   grafana:
     image: grafana/grafana
