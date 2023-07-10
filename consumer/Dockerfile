@@ -14,7 +14,7 @@ RUN go mod download
 RUN go build -o consumer
 
 # Expose Prometheus metrics port
-EXPOSE 9000
+EXPOSE 9010
 
 # Run the Go application
 CMD ["./consumer"]
