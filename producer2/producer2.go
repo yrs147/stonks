@@ -127,7 +127,7 @@ func main() {
 	defer writer.Close()
 
 	for range ticker.C {
-		timestamp, name, open, low, high, close := ScrapeData("https://in.investing.com/equities/infosys")
+		timestamp, name, open, low, high, close := ScrapeData("https://in.investing.com/indices/us-spx-500")
 		data := StockData{
 			Timestamp: timestamp,
 			Name:      name,

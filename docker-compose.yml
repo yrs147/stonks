@@ -14,14 +14,15 @@ services:
     container_name: broker
     ports:
       - "9092:9092"
+      - "9093:9093"
     depends_on:
       - zookeeper
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092,PLAINTEXT_INTERNAL://broker:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -30,7 +31,7 @@ services:
       /etc/confluent/docker/run &
       sleep 10 &&
       kafka-topics --create --topic nifty --bootstrap-server broker:9092 --partitions 1 --replication-factor 1 &&
-      kafka-topics --create --topic infosys --bootstrap-server broker:9092 --partitions 1 --replication-factor 1 &&
+      kafka-topics --create --topic infosys --bootstrap-server broker:9093 --partitions 1 --replication-factor 1 &&
       tail -f /dev/null"
 
   producer1:
@@ -53,7 +54,7 @@ services:
       - broker
       - zookeeper
     environment:
-      - BROKER_ADDRESS2=broker:9092
+      - BROKER_ADDRESS2=broker:9093
   
 
   consumer:
@@ -64,12 +65,11 @@ services:
     depends_on:
       - broker
       - zookeeper
-      - prometheus
     environment:
       - BROKER_ADDRESS1=broker:9092
-      - BROKER_ADDRESS2=broker:9092
+      - BROKER_ADDRESS2=broker:9093
     ports:
-      - "9010:9010"  
+      - "9010:9010"   
 
   prometheus:
     build:

@@ -11,7 +11,7 @@ COPY . .
 RUN go mod download
 
 # Build the Go application
-RUN go build -o producer1
+RUN go build -o producer2
 
 # Set the entry point for the container
-CMD ["./producer1"]
+CMD ["./producer2"]
