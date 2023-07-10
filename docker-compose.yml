@@ -69,6 +69,8 @@ services:
     environment:
       - BROKER_ADDRESS1=broker:9092
       - BROKER_ADDRESS2=broker:9093
+    ports:
+      - "9090:9090"  
 
   prometheus:
     build:
