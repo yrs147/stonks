@@ -44,6 +44,7 @@ services:
       - zookeeper
     environment:
       - BROKER_ADDRESS1=broker:9092
+      - STOCK1=https://in.investing.com/indices/us-spx-500
   
   producer2:
     build:
@@ -55,6 +56,7 @@ services:
       - zookeeper
     environment:
       - BROKER_ADDRESS2=broker:9093
+      - STOCK2=https://in.investing.com/indices/nq-100
   
 
   consumer:
