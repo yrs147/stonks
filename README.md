@@ -14,30 +14,23 @@ Stonks is a Stock Market Data Processing Engine which leverages the power of clo
 
 ## Steps to Setup the Project
 
-1. Now Setup a `t2.medium`EC2 Instance named `Kafka`
-2. 
-3. Connect to the server using `EC2 Instance Connect` or through a `ssh client` (**using the pem**)and run the following command :-
+1. Install the prerequisites on your device
 
-```
-sudo apt-get update
-```
-
-4. Install the prerequisites on all servers 
-
-5. Now clone the project on all the servers using the following command :- 
+2. Now clone the project on all the servers using the following command :- 
 ``` 
 git clone https://github.com/yrs147/stonks
 ```
-6. Go the the kafka server and run the using the following commands :-
 
+3. Open project directory :-
 ```
 cd stonks
 ```
-then
+
+4. Using an editor open the `docker-compose.yaml` file and add the links of stocks you want to track in `STOCK1` and `STOCK2` under `producer1` and `producer2`
+
+5. Run the following command to start the project
 ```
 docker-compose -f kafka.yml -d up
 ```
-
-7. Now to to the producer servers and run the following command 
 
 

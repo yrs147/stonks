@@ -30,8 +30,8 @@ services:
       bash -c "
       /etc/confluent/docker/run &
       sleep 10 &&
-      kafka-topics --create --topic nifty --bootstrap-server broker:9092 --partitions 1 --replication-factor 1 &&
-      kafka-topics --create --topic infosys --bootstrap-server broker:9093 --partitions 1 --replication-factor 1 &&
+      kafka-topics --create --topic stock1 --bootstrap-server broker:9092 --partitions 1 --replication-factor 1 &&
+      kafka-topics --create --topic stock2 --bootstrap-server broker:9093 --partitions 1 --replication-factor 1 &&
       tail -f /dev/null"
 
   producer1:

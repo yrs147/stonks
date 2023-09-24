@@ -117,17 +117,18 @@ func main() {
 
 	// Kafka broker address
 	brokerAddress := os.Getenv("BROKER_ADDRESS2")
+	url := os.Getenv("STOCK2")
 
 	// Create a writer with broker address and topic
 	writer := kafka.NewWriter(kafka.WriterConfig{
 		Brokers: []string{brokerAddress},
-		Topic:   "infosys",
+		Topic:   "stock2",
 	})
 
 	defer writer.Close()
 
 	for range ticker.C {
-		timestamp, name, open, low, high, close := ScrapeData("https://in.investing.com/indices/us-spx-500")
+		timestamp, name, open, low, high, close := ScrapeData(url)
 		data := StockData{
 			Timestamp: timestamp,
 			Name:      name,

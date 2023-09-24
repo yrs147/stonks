@@ -57,7 +57,7 @@ func main() {
 	// Create a reader with broker address, topic, and consumer group
 	reader1 := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{brokerAddress1},
-		Topic:    "nifty",
+		Topic:    "stock1",
 		GroupID:  "consumer1",
 		MinBytes: 10e3, // 10KB
 		MaxBytes: 10e6, // 10MB
@@ -66,7 +66,7 @@ func main() {
 	// Create a reader with broker address, topic, and consumer group
 	reader2 := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{brokerAddress2},
-		Topic:    "infosys",
+		Topic:    "stock2",
 		GroupID:  "consumer1",
 		MinBytes: 10e3, // 10KB
 		MaxBytes: 10e6, // 10MB
