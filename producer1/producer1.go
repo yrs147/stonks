@@ -12,6 +12,8 @@ import (
 
 	"github.com/gocolly/colly"
 	"github.com/segmentio/kafka-go"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type StockData struct {
@@ -34,11 +36,15 @@ var (
 	}
 )
 
+// Selecting a random user agent
+
 func RandUserAgent() string {
 	rand.Seed(time.Now().Unix())
 	randNum := rand.Int() % len(userAgents)
 	return userAgents[randNum]
 }
+
+// Scrape Stock data
 
 func ScrapeData(url string) (string, string, float64, float64, float64, float64) {
 	c := colly.NewCollector(colly.AllowedDomains("in.investing.com"))
@@ -127,6 +133,15 @@ func main() {
 
 	defer writer.Close()
 
+	mongoURI := os.Getenv("MONGO_URI")
+	clientOptions := options.Client().ApplyURI(mongoURI)
+	client, err := mongo.Connect(context.Background(), clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(context.Background())
+	collection := client.Database("stock_data_db").Collection("stock1_data")
+
 	for range ticker.C {
 		timestamp, name, open, low, high, close := ScrapeData(url)
 		data := StockData{
@@ -153,6 +168,13 @@ func main() {
 			log.Printf("Failed to produce message: %v\n", err)
 		}
 
+		//Inert Data into MongoDB
+		_, err = collection.InsertOne(context.Background(), data)
+		
+		if err != nil {
+			log.Printf("Failed to insert data into MongoDB %v\n", err)
+		}
+		log.Printf("Added to Mongo Database 1: %v\n",data)
 		log.Printf("Sent Message: %s\n", jsonData)
 	}
 
