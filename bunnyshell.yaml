@@ -1,106 +1,109 @@
 kind: Environment
-name: aaa
+name: stonks
 type: primary
 components:
-    -
-        kind: Service
-        name: broker
-        dockerCompose:
-            command:
-                - bash
-                - '-c'
-                - ' /etc/confluent/docker/run & sleep 10 && kafka-topics --create --topic nifty --bootstrap-server broker:9092 --partitions 1 --replication-factor 1 && kafka-topics --create --topic infosys --bootstrap-server broker:9093 --partitions 1 --replication-factor 1 && tail -f /dev/null'
-            environment:
-                KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://broker:9092,PLAINTEXT_INTERNAL://broker:9093'
-                KAFKA_BROKER_ID: '1'
-                KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT'
-                KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:9093'
-                KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
-                KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
-                KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
-                KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-            image: 'confluentinc/cp-kafka:7.3.0'
-            ports:
-                - '9092:9092'
-                - '9093:9093'
-        hosts:
-            -
-                hostname: 'broker-{{ env.base_domain }}'
-                path: /
-                servicePort: 9092
-    -
-        kind: Application
-        name: consumer
-        gitRepo: 'https://github.com/yrs147/stonks.git'
-        gitBranch: bunnyshell
-        gitApplicationPath: consumer
-        dockerCompose:
-            build:
-                context: ./consumer
-                dockerfile: Dockerfile
-            environment:
-                BROKER_ADDRESS1: 'broker:9092'
-                BROKER_ADDRESS2: 'broker:9093'
-                HOST_ADDR: 'prometheus:9010'
-    -
-        kind: Service
-        name: grafana
-        dockerCompose:
-            image: grafana/grafana
-            ports:
-                - '3000:3000'
-        hosts:
-            -
-                hostname: 'grafana-{{ env.base_domain }}'
-                path: /
-                servicePort: 3000
-    -
-        kind: Application
-        name: producer1
-        gitRepo: 'https://github.com/yrs147/stonks.git'
-        gitBranch: bunnyshell
-        gitApplicationPath: producer1
-        dockerCompose:
-            build:
-                context: ./producer1
-                dockerfile: Dockerfile
-            environment:
-                BROKER_ADDRESS1: 'broker:9092'
-    -
-        kind: Application
-        name: producer2
-        gitRepo: 'https://github.com/yrs147/stonks.git'
-        gitBranch: bunnyshell
-        gitApplicationPath: producer2
-        dockerCompose:
-            build:
-                context: ./producer2
-                dockerfile: Dockerfile
-            environment:
-                BROKER_ADDRESS2: 'broker:9093'
-    -
-        kind: Application
-        name: prometheus
-        gitRepo: 'https://github.com/yrs147/stonks.git'
-        gitBranch: bunnyshell
-        gitApplicationPath: prometheus
-        dockerCompose:
-            build:
-                context: ./prometheus
-                dockerfile: Dockerfile
-            ports:
-                - '9090:9090'
-        hosts:
-            -
-                hostname: 'prometheus-{{ env.base_domain }}'
-                path: /
-                servicePort: 9090
-    -
-        kind: Service
-        name: zookeeper
-        dockerCompose:
-            environment:
-                ZOOKEEPER_CLIENT_PORT: '2181'
-                ZOOKEEPER_TICK_TIME: '2000'
-            hostname: zookeeper
-            image: 'confluentinc/cp-zookeeper:7.3.0'
+  - kind: Service
+    name: zookeeper
+    dockerCompose:
+      environment:
+        ZOOKEEPER_CLIENT_PORT: '2181'
+        ZOOKEEPER_TICK_TIME: '2000'
+      image: 'confluentinc/cp-zookeeper:7.3.0'
+      hostname: zookeeper
+
+  - kind: Service
+    name: broker
+    dockerCompose:
+      command:
+        - bash
+        - '-c'
+        - ' /etc/confluent/docker/run & sleep 10 && kafka-topics --create --topic nifty --bootstrap-server broker:9092 --partitions 1 --replication-factor 1 && kafka-topics --create --topic infosys --bootstrap-server broker:9093 --partitions 1 --replication-factor 1 && tail -f /dev/null'
+      environment:
+        KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://broker:9092,PLAINTEXT_INTERNAL://broker:9093'
+        KAFKA_BROKER_ID: '1'
+        KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT'
+        KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:9093'
+        KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
+        KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
+        KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
+        KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      image: 'confluentinc/cp-kafka:7.3.0'
+      ports:
+        - '9092:9092'
+        - '9093:9093'
+    hosts:
+      - hostname: 'broker-{{ env.base_domain }}'
+        path: /
+        servicePort: 9092
+
+  - kind: Application
+    name: consumer
+    gitRepo: 'https://github.com/yrs147/stonks.git'
+    gitBranch: bunnyshell
+    gitApplicationPath: consumer
+    dockerCompose:
+      build:
+        context: ./consumer
+        dockerfile: Dockerfile
+      environment:
+        BROKER_ADDRESS1: 'broker:9092'
+        BROKER_ADDRESS2: 'broker:9093'
+        HOST_ADDR: 'prometheus:9010'
+
+  - kind: Service
+    name: grafana
+    dockerCompose:
+      image: grafana/grafana
+      ports:
+        - '3000:3000'
+    hosts:
+      - hostname: 'grafana-{{ env.base_domain }}'
+        path: /
+        servicePort: 3000
+
+  - kind: Application
+    name: producer1
+    gitRepo: 'https://github.com/yrs147/stonks.git'
+    gitBranch: bunnyshell
+    gitApplicationPath: producer1
+    dockerCompose:
+      build:
+        context: ./producer1
+        dockerfile: Dockerfile
+      environment:
+        BROKER_ADDRESS1: 'broker:9092'
+
+  - kind: Application
+    name: producer2
+    gitRepo: 'https://github.com/yrs147/stonks.git'
+    gitBranch: bunnyshell
+    gitApplicationPath: producer2
+    dockerCompose:
+      build:
+        context: ./producer2
+        dockerfile: Dockerfile
+      environment:
+        BROKER_ADDRESS2: 'broker:9093'
+
+  - kind: Application
+    name: prometheus
+    gitRepo: 'https://github.com/yrs147/stonks.git'
+    gitBranch: bunnyshell
+    gitApplicationPath: prometheus
+    dockerCompose:
+      build:
+        context: ./prometheus
+        dockerfile: Dockerfile
+      ports:
+        - '9090:9090'
+    hosts:
+      - hostname: 'prometheus-{{ env.base_domain }}'
+        path: /
+        servicePort: 9090
+
+  - kind: Service
+    name: mongo
+    dockerCompose:
+      image: mongo:latest
+      ports:
+        - '27017:27017'
