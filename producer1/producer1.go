@@ -1,8 +1,8 @@
-package scraper
+package main
 
 import (
-	"encoding/csv"
-	"fmt"
+	"context"
+	"encoding/json"
 	"log"
 	"math/rand"
 	"os"
@@ -11,7 +11,19 @@ import (
 	"time"
 
 	"github.com/gocolly/colly"
+	"github.com/segmentio/kafka-go"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+type StockData struct {
+	Timestamp string
+	Name      string
+	Open      float64
+	Low       float64
+	High      float64
+	Close     float64
+}
 
 var (
 	userAgents = []string{
@@ -24,13 +36,17 @@ var (
 	}
 )
 
+// Selecting a random user agent
+
 func RandUserAgent() string {
 	rand.Seed(time.Now().Unix())
 	randNum := rand.Int() % len(userAgents)
 	return userAgents[randNum]
 }
 
-func ScrapeData(url string) (string, float64, float64, float64, float64) {
+// Scrape Stock data
+
+func ScrapeData(url string) (string, string, float64, float64, float64, float64) {
 	c := colly.NewCollector(colly.AllowedDomains("in.investing.com"))
 
 	c.OnRequest(func(r *colly.Request) {
@@ -48,12 +64,14 @@ func ScrapeData(url string) (string, float64, float64, float64, float64) {
 	c.OnHTML("h1.main-title.js-main-title span.text", func(e *colly.HTMLElement) {
 		index := e.Text
 		index = strings.TrimSpace(index)
+		index = strings.ReplaceAll(index, " ", "")
 		name = index
 	})
 
 	c.OnHTML("div.common-data-item dt.common-data-label span.text:contains('Open')", func(e *colly.HTMLElement) {
 		openValue := e.DOM.Parent().Next().Text()
 		openValue = strings.TrimSpace(openValue)
+		openValue = strings.ReplaceAll(openValue, ",", "")
 		if openValue != "" {
 			open, _ = strconv.ParseFloat(openValue, 64)
 		}
@@ -62,6 +80,7 @@ func ScrapeData(url string) (string, float64, float64, float64, float64) {
 	c.OnHTML("div.common-data-item dt.common-data-label span.text:contains('Day')", func(e *colly.HTMLElement) {
 		daysRangeValue := e.DOM.Parent().Next().Text()
 		daysRangeValue = strings.TrimSpace(daysRangeValue)
+		daysRangeValue = strings.ReplaceAll(daysRangeValue, ",", "")
 		splitValues := strings.Split(daysRangeValue, " - ")
 		if len(splitValues) == 2 {
 			low, _ = strconv.ParseFloat(splitValues[0], 64)
@@ -72,6 +91,7 @@ func ScrapeData(url string) (string, float64, float64, float64, float64) {
 	c.OnHTML("div.last-price-and-wildcard bdo.last-price-value.js-streamable-element", func(e *colly.HTMLElement) {
 		price := e.Text
 		price = strings.TrimSpace(price)
+		price = strings.ReplaceAll(price, ",", "")
 		if price != "" {
 			close, _ = strconv.ParseFloat(price, 64)
 		}
@@ -85,58 +105,78 @@ func ScrapeData(url string) (string, float64, float64, float64, float64) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Load the local time zone
+	loc, err := time.LoadLocation("Asia/Kolkata") 
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	return name, open, low, high, close
+	currentTime := time.Now().In(loc)
+	timestamp := currentTime.Format("02-01-2006 15:04:05")
+
+	return timestamp, name, open, low, high, close
 }
 
-func PrintData(name string, open float64, low float64, high float64, close float64) {
-	currentTime := time.Now()
-	currentDate := currentTime.Format("2006-01-02")
-	fmt.Println("Current Date:", currentDate)
-	fmt.Println("Current Time:", currentTime.Format("15:04:05"))
-	fmt.Println("Name:", name)
-	fmt.Println("Open:", open)
-	fmt.Println("Low:", low)
-	fmt.Println("High:", high)
-	fmt.Println("Close:", close)
-	fmt.Println("------------------------")
-	// Open or create the CSV file
-	file, err := os.OpenFile("data.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func main() {
+	ticker := time.NewTicker(4 * time.Second)
+	// var stockData []StockData
+
+	// Kafka broker address
+	brokerAddress := os.Getenv("BROKER_ADDRESS1")
+	url := os.Getenv("STOCK1")
+
+	// Create a writer with broker address and topic
+	writer := kafka.NewWriter(kafka.WriterConfig{
+		Brokers: []string{brokerAddress},
+		Topic:   "stock1",
+	})
+
+	defer writer.Close()
+
+	mongoURI := os.Getenv("MONGO_URI")
+	clientOptions := options.Client().ApplyURI(mongoURI)
+	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer file.Close()
+	defer client.Disconnect(context.Background())
+	collection := client.Database("stock_data_db").Collection("stock1_data")
 
-	// Create a CSV writer
-	writer := csv.NewWriter(file)
-
-	// Check if the file is empty
-	fileInfo, err := file.Stat()
-	if err != nil {
-		log.Fatal(err)
-	}
-	isEmpty := fileInfo.Size() == 0
-
-	// Write headers if the file is empty
-	if isEmpty {
-		headers := []string{"Date", "Time", "Name", "Open", "Low", "High", "Close"}
-		err = writer.Write(headers)
-		if err != nil {
-			log.Fatal(err)
+	for range ticker.C {
+		timestamp, name, open, low, high, close := ScrapeData(url)
+		data := StockData{
+			Timestamp: timestamp,
+			Name:      name,
+			Open:      open,
+			Low:       low,
+			High:      high,
+			Close:     close,
 		}
+
+		// Convert data to JSON
+		jsonData, err := json.Marshal(data)
+		if err != nil {
+			log.Printf("Failed to convert to JSON: %v\n", err)
+			continue
+		}
+
+		// Write the message to Kafka
+		err = writer.WriteMessages(context.Background(), kafka.Message{
+			Value: jsonData,
+		})
+		if err != nil {
+			log.Printf("Failed to produce message: %v\n", err)
+		}
+
+		//Inert Data into MongoDB
+		_, err = collection.InsertOne(context.Background(), data)
+		
+		if err != nil {
+			log.Printf("Failed to insert data into MongoDB %v\n", err)
+		}
+		log.Printf("Added to Mongo Database 1: %v\n",data)
+		log.Printf("Sent Message: %s\n", jsonData)
 	}
 
-	// Write the data to the CSV file
-	data := []string{currentDate, currentTime.Format("15:04:05"), name, strconv.FormatFloat(open, 'f', -1, 64), strconv.FormatFloat(low, 'f', -1, 64), strconv.FormatFloat(high, 'f', -1, 64), strconv.FormatFloat(close, 'f', -1, 64)}
-	err = writer.Write(data)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Flush any buffered data to the file
-	writer.Flush()
-	if err := writer.Error(); err != nil {
-		log.Fatal(err)
-	}
-
+	writer.Close()
 }
